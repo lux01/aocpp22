@@ -107,12 +107,21 @@ void yzPlane(const Cube& min, const Cube& max, Fn&& fn) {
     }
 }
 
+Cube minCube(const Cube& a, const Cube& b) noexcept {
+    return Cube{std::min(a.x, b.x), std::min(a.y, b.y), std::min(a.z, b.z)};
+}
+
+Cube maxCube(const Cube& a, const Cube& b) noexcept {
+    return Cube{std::max(a.x, b.x), std::max(a.y, b.y), std::max(a.z, b.z)};
+}
+
 std::set<Cube> findAirPockets(const std::set<Cube>& cubes) {
-    // Determine the bounding box of the cube
-    auto min = std::reduce(cubes.cbegin(), cubes.cend(), Cube{UINT32_MAX, UINT32_MAX, UINT32_MAX},
-                           [](const Cube& a, const Cube& b) { return Cube{std::min(a.x, b.x), std::min(a.y, b.y), std::min(a.z, b.z)}; });
-    auto max = std::reduce(cubes.cbegin(), cubes.cend(), Cube{0, 0, 0},
-                           [](const Cube& a, const Cube& b) { return Cube{std::max(a.x, b.x), std::max(a.y, b.y), std::max(a.z, b.z)}; });
+    Cube min{UINT32_MAX, UINT32_MAX, UINT32_MAX};
+    Cube max{0, 0, 0};
+    for (const auto& cube : cubes) {
+        min = minCube(min, cube);
+        max = maxCube(max, cube);
+    }
 
     // Construct the negative of the droplet, this is the set of all air bubbles and the surrounding air
     std::set<Cube> negative;
@@ -126,7 +135,7 @@ std::set<Cube> findAirPockets(const std::set<Cube>& cubes) {
         }
     }
 
-    // Create a subset of the negative which are all the points on the outer boundary of the negative
+    // Create a subset of the negative which are all the points on the edge of the bounding box
     std::set<Cube> unvisitedNegativeCubes;
 
     xyPlane(min, max, [&](uint32_t x, uint32_t y) {
@@ -164,6 +173,8 @@ std::set<Cube> findAirPockets(const std::set<Cube>& cubes) {
         if (negative.contains({x, y, z - 1})) unvisitedNegativeCubes.insert({x, y, z - 1});
         if (negative.contains({x, y, z + 1})) unvisitedNegativeCubes.insert({x, y, z + 1});
     }
+
+    // The remaining points in the negative are the air pockets
     return negative;
 }
 
